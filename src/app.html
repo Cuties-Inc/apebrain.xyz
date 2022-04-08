@@ -9,6 +9,9 @@
 		%svelte.head%
 	</head>
 	<body>
+		<script>
+			if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js')
+		</script>
 		<div>%svelte.body%</div>
 	</body>
 </html>
