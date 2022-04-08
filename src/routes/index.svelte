@@ -140,7 +140,7 @@
 							todoTitleInput = '';
 							newTodoModalShown = true;
 							inputMode = InputMode.Insert;
-              setTimeout(() => newTodoTitleInputEl.focus(), 0);
+							setTimeout(() => newTodoTitleInputEl.focus(), 0);
 							break;
 						}
 						case 'i':
@@ -148,7 +148,7 @@
 							todoTitleInput = $todos[selectedIndex].title;
 							editTodoModalShown = true;
 							inputMode = InputMode.Insert;
-              setTimeout(() => editTodoTitleInputEl.focus(), 0);
+							setTimeout(() => editTodoTitleInputEl.focus(), 0);
 							break;
 						}
 						case '1':
@@ -273,7 +273,7 @@
 			type="text"
 			placeholder="Task Title"
 			bind:value={todoTitleInput}
-      bind:this={editTodoTitleInputEl}
+			bind:this={editTodoTitleInputEl}
 		/>
 	</div>
 </Modal>
@@ -354,6 +354,11 @@
 				>
 			</div>
 			<div class="flex text-2xl text-ellipsis overflow-hidden line-through">{todo.title}</div>
+      {#if todo.checkedDate}
+        <div class="flex ml-auto text-2xl">
+            {new Date(todo.checkedDate).getMonth()+1}/{new Date(todo.checkedDate).getDate()}/{new Date(todo.checkedDate).getFullYear()}
+        </div>
+      {/if}
 		</div>
 	{/each}
 </div>
