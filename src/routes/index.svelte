@@ -115,7 +115,7 @@
 							if ((incompleteSelected ? $todos : $todosCompleted).length > 0) {
 								let temp = incompleteSelected ? $todos : $todosCompleted;
 								let item = temp.splice(selectedIndex, 1)[0];
-								if (!incompleteSelected) item.checkedDate = new Date();
+								if (incompleteSelected) item.checkedDate = new Date();
 								(incompleteSelected ? todos : todosCompleted).set(temp);
 								temp = incompleteSelected ? $todosCompleted : $todos;
 								temp.unshift(item);
