@@ -1,5 +1,5 @@
 <div align=center>
-    <img src="../apebrain/build/favicon.png" width=180>
+    <img src="./static/favicon.png" width=180>
     <h1><a href="https://apebrain.xyz">apebrain.xyz</a></h1>
 </div>
 
