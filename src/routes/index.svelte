@@ -239,7 +239,7 @@
 								a[selectedIndex] = t;
 								todos.set(a);
 								// reset newTodo state
-								newTodoModalShown = false;
+								editTodoModalShown = false;
 								inputMode = InputMode.TodoCommand;
 								todoTitleInput = '';
 								break;
