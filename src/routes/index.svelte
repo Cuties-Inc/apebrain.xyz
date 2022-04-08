@@ -15,7 +15,7 @@
 	let inputMode = InputMode.TodoCommand;
 	var selectedIndex = 0;
 
-  var helpModalShown = false;
+	var helpModalShown = false;
 	var newTodoModalShown = false;
 	var editTodoModalShown = false;
 	var deleteTodoModalShown = false;
@@ -26,6 +26,7 @@
 
 	// Element bindings
 	let newTodoTitleInputEl;
+	let editTodoTitleInputEl;
 
 	onMount(() => {
 		// Load values
@@ -114,7 +115,7 @@
 							if ((incompleteSelected ? $todos : $todosCompleted).length > 0) {
 								let temp = incompleteSelected ? $todos : $todosCompleted;
 								let item = temp.splice(selectedIndex, 1)[0];
-								if (!incompleteSelected) item.checkedDate = new Date();
+								if (incompleteSelected) item.checkedDate = new Date();
 								(incompleteSelected ? todos : todosCompleted).set(temp);
 								temp = incompleteSelected ? $todosCompleted : $todos;
 								temp.unshift(item);
@@ -132,14 +133,14 @@
 							}
 							break;
 						}
-						case 'n': 
-            case 'N':
-            case 'o':
-            case 'O': {
+						case 'n':
+						case 'N':
+						case 'o':
+						case 'O': {
 							todoTitleInput = '';
 							newTodoModalShown = true;
 							inputMode = InputMode.Insert;
-							newTodoTitleInputEl.focus();
+							setTimeout(() => newTodoTitleInputEl.focus(), 0);
 							break;
 						}
 						case 'i':
@@ -147,7 +148,7 @@
 							todoTitleInput = $todos[selectedIndex].title;
 							editTodoModalShown = true;
 							inputMode = InputMode.Insert;
-							newTodoTitleInputEl.focus();
+							setTimeout(() => editTodoTitleInputEl.focus(), 0);
 							break;
 						}
 						case '1':
@@ -161,13 +162,13 @@
 						case '9': {
 							let n = Number(key);
 							selectedIndex = $todos.length > n ? n - 1 : $todos.length - 1;
-              break;
+							break;
 						}
-            case '/':
-            case '?':
-              helpModalShown = true;
-              inputMode = InputMode.Modal;
-              break;
+						case '/':
+						case '?':
+							helpModalShown = true;
+							inputMode = InputMode.Modal;
+							break;
 					}
 					break;
 				}
@@ -192,16 +193,16 @@
 							}
 						}
 					}
-          if (helpModalShown) {
-            switch (key) {
-              case 'Escape':
-              case '/':
-              case '?':
-                helpModalShown = false;
-                inputMode = InputMode.TodoCommand;
-                break;
-            }
-          }
+					if (helpModalShown) {
+						switch (key) {
+							case 'Escape':
+							case '/':
+							case '?':
+								helpModalShown = false;
+								inputMode = InputMode.TodoCommand;
+								break;
+						}
+					}
 					break;
 				}
 				case InputMode.Insert: {
@@ -222,6 +223,8 @@
 								newTodoModalShown = false;
 								inputMode = InputMode.TodoCommand;
 								todoTitleInput = '';
+								incompleteSelected = true;
+								selectedIndex = 0;
 								break;
 						}
 					}
@@ -239,7 +242,7 @@
 								a[selectedIndex] = t;
 								todos.set(a);
 								// reset newTodo state
-								newTodoModalShown = false;
+								editTodoModalShown = false;
 								inputMode = InputMode.TodoCommand;
 								todoTitleInput = '';
 								break;
@@ -270,21 +273,23 @@
 			type="text"
 			placeholder="Task Title"
 			bind:value={todoTitleInput}
+			bind:this={editTodoTitleInputEl}
 		/>
 	</div>
 </Modal>
 <Modal shown={helpModalShown} title="Help">
 	<div class="w-96 flex flex-row text-xl">
-    <div class="flex flex-col">
-      <div>[n / i] - add new task</div>
-      <div>[h / l] - left/right between lists</div>
-      <div>[k / j] - up/down between tasks</div>
-      <div>[d] - delete task</div>
-      <div>[space] - check/uncheck task</div>
-      <div>[esc] - exit current view</div>
-      <div>[/ / ?] - help</div>
-    </div>
-  </div> 
+		<div class="flex flex-col">
+			<div class="my-0.5">[n / i] - add new task</div>
+			<div class="my-0.5">[h / l] - left / right between lists</div>
+			<div class="my-0.5">[k / j] - up / down between tasks</div>
+			<div class="my-0.5">[shift] [k / j] - move tasks up / down</div>
+			<div class="my-0.5">[d] - delete task</div>
+			<div class="my-0.5">[space] - check / uncheck task</div>
+			<div class="my-0.5">[esc] - exit current view</div>
+			<div class="my-0.5">[/ / ?] - help</div>
+		</div>
+	</div>
 </Modal>
 
 <div class="py-4 pl-8 pr-16 w-auto flex flex-col lhalf">
@@ -349,6 +354,11 @@
 				>
 			</div>
 			<div class="flex text-2xl text-ellipsis overflow-hidden line-through">{todo.title}</div>
+      {#if todo.checkedDate}
+        <div class="flex ml-auto text-2xl">
+            {new Date(todo.checkedDate).getMonth()+1}/{new Date(todo.checkedDate).getDate()}/{new Date(todo.checkedDate).getFullYear()}
+        </div>
+      {/if}
 		</div>
 	{/each}
 </div>
