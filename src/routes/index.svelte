@@ -4,6 +4,7 @@
 	import { get, writable } from 'svelte/store';
 	import type { Todo } from '../types';
 	import { InputMode } from '../types';
+	import FocusModeModal from '/src/components/FocusModeModal.svelte';
 
 	const todos = writable<Todo[]>([]);
 	const todosCompleted = writable<Todo[]>([]);
@@ -19,6 +20,15 @@
 	var newTodoModalShown = false;
 	var editTodoModalShown = false;
 	var deleteTodoModalShown = false;
+	var focusModeShown = false;
+
+  var firstTaskTitle = "";
+
+	function getFirstTaskTitle(): string {
+    if ($todos.length > 0)
+      return $todos[0].title
+    else return ""
+	}
 
 	// Values for new todos
 	var todoTitleInput = '';
@@ -169,6 +179,13 @@
 							helpModalShown = true;
 							inputMode = InputMode.Modal;
 							break;
+						case 'f':
+              if ($todos.length > 0) {
+                firstTaskTitle = getFirstTaskTitle();
+                focusModeShown = true;
+                inputMode = InputMode.Modal;
+              }
+              break;
 					}
 					break;
 				}
@@ -199,6 +216,15 @@
 							case '/':
 							case '?':
 								helpModalShown = false;
+								inputMode = InputMode.TodoCommand;
+								break;
+						}
+					}
+					if (focusModeShown) {
+						switch (key) {
+							case 'Escape':
+							case 'f':
+								focusModeShown = false;
 								inputMode = InputMode.TodoCommand;
 								break;
 						}
@@ -285,6 +311,7 @@
 			<div class="my-0.5">[k / j] - up / down between tasks</div>
 			<div class="my-0.5">[shift] [k / j] - move tasks up / down</div>
 			<div class="my-0.5">[d] - delete task</div>
+			<div class="my-0.5">[f] - focus mode</div>
 			<div class="my-0.5">[space] - check / uncheck task</div>
 			<div class="my-0.5">[esc] - exit current view</div>
 			<div class="my-0.5">[/ / ?] - help</div>
@@ -292,75 +319,87 @@
 	</div>
 </Modal>
 
+<FocusModeModal shown={focusModeShown}>
+	<div class="text-3xl">{firstTaskTitle}</div>
+</FocusModeModal>
+
+<!-- Incomplete todos -->
 <div class="py-4 pl-8 pr-16 w-auto flex flex-col lhalf">
-	<div class="text-3xl font-bold">Tasks</div>
-	<div class="h-3" />
-	{#each $todos as todo}
-		<div
-			class="flex flex-row my-1.5 px-2.5 py-1.5 w-full items-center rounded-md {incompleteSelected &&
-			get(todos)[selectedIndex] === todo
-				? 'bg-zinc-200 text-zinc-900 scale-110 translate-x-4'
-				: ''} transition ease-in-out duration-200 select-none"
-		>
-			<div class="mr-3">
-				<svg
-					xmlns="http://www.w3.org/2000/svg"
-					width="24"
-					height="24"
-					viewBox="0 0 24 24"
-					fill="none"
-					stroke="currentColor"
-					stroke-width="2"
-					stroke-linecap="round"
-					stroke-linejoin="round"
-					class="feather feather-circle stroke-zinc-{incompleteSelected &&
-					get(todos)[selectedIndex] === todo
-						? '900'
-						: '200'}"><circle cx="12" cy="12" r="10" /></svg
-				>
+	<div class="text-3xl font-bold pb-3 background-zinc-900">Tasks</div>
+	<!-- {todoListSnap == ListSnap.Top ? 'top-0' : (todoListSnap == ListSnap.Bottom ? 'bottom-0' : '')} -->
+	<div class="overflow-y-clip relative bottom-0">
+		{#each $todos as todo}
+			<div
+				class="flex flex-row my-1.5 px-2.5 h-10 w-full items-center rounded-md  transition ease-in-out duration-200 select-none 
+				{incompleteSelected && get(todos)[selectedIndex] === todo
+					? 'bg-zinc-200 text-zinc-900 scale-110 translate-x-4'
+					: ''}"
+			>
+				<div class="mr-3">
+					<svg
+						xmlns="http://www.w3.org/2000/svg"
+						width="24"
+						height="24"
+						viewBox="0 0 24 24"
+						fill="none"
+						stroke="currentColor"
+						stroke-width="2"
+						stroke-linecap="round"
+						stroke-linejoin="round"
+						class="feather feather-circle stroke-zinc-{incompleteSelected &&
+						get(todos)[selectedIndex] === todo
+							? '900'
+							: '200'}"><circle cx="12" cy="12" r="10" /></svg
+					>
+				</div>
+				<div class="flex text-xl text-ellipsis overflow-hidden">{todo.title}</div>
 			</div>
-			<div class="flex text-2xl text-ellipsis overflow-hidden">{todo.title}</div>
-		</div>
-	{/each}
+		{/each}
+	</div>
 </div>
+
+<!-- Completed todos -->
 <div class="py-4 pl-8 pr-16 w-auto flex flex-col text-zinc-400 rhalf">
-	<div class="text-3xl font-bold">Completed</div>
-	<div class="h-3" />
-	{#each $todosCompleted as todo}
-		<div
-			class="flex flex-row my-1.5 px-2.5 py-1.5 w-full items-center rounded-md {!incompleteSelected &&
-			$todosCompleted[selectedIndex] === todo
-				? 'bg-zinc-400 text-zinc-900 scale-110 translate-x-4'
-				: ''} transition ease-in-out duration-200 select-none"
-		>
-			<div class="mr-3">
-				<svg
-					xmlns="http://www.w3.org/2000/svg"
-					width="24"
-					height="24"
-					viewBox="0 0 24 24"
-					fill="none"
-					stroke="currentColor"
-					stroke-width="2"
-					stroke-linecap="round"
-					stroke-linejoin="round"
-					class="feather feather-check-circle stroke-zinc-{!incompleteSelected &&
-					$todosCompleted[selectedIndex] === todo
-						? '900'
-						: '400'}"
-					><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" /><polyline
-						points="22 4 12 14.01 9 11.01"
-					/></svg
-				>
+	<div class="text-3xl font-bold pb-3 background-zinc-900">Completed</div>
+	<div class="overflow-y-clip relative">
+		{#each $todosCompleted as todo}
+			<div
+				class="flex flex-row my-1.5 px-2.5 h-10 w-full items-center rounded-md {!incompleteSelected &&
+				$todosCompleted[selectedIndex] === todo
+					? 'bg-zinc-400 text-zinc-900 scale-110 translate-x-4'
+					: ''} transition ease-in-out duration-200 select-none"
+			>
+				<div class="mr-3">
+					<svg
+						xmlns="http://www.w3.org/2000/svg"
+						width="24"
+						height="24"
+						viewBox="0 0 24 24"
+						fill="none"
+						stroke="currentColor"
+						stroke-width="2"
+						stroke-linecap="round"
+						stroke-linejoin="round"
+						class="feather feather-check-circle stroke-zinc-{!incompleteSelected &&
+						$todosCompleted[selectedIndex] === todo
+							? '900'
+							: '400'}"
+						><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" /><polyline
+							points="22 4 12 14.01 9 11.01"
+						/></svg
+					>
+				</div>
+				<div class="flex text-xl text-ellipsis overflow-hidden line-through">{todo.title}</div>
+				{#if todo.checkedDate}
+					<div class="flex ml-auto text-xl">
+						{new Date(todo.checkedDate).getMonth() + 1}/{new Date(
+							todo.checkedDate
+						).getDate()}/{new Date(todo.checkedDate).getFullYear()}
+					</div>
+				{/if}
 			</div>
-			<div class="flex text-2xl text-ellipsis overflow-hidden line-through">{todo.title}</div>
-      {#if todo.checkedDate}
-        <div class="flex ml-auto text-2xl">
-            {new Date(todo.checkedDate).getMonth()+1}/{new Date(todo.checkedDate).getDate()}/{new Date(todo.checkedDate).getFullYear()}
-        </div>
-      {/if}
-		</div>
-	{/each}
+		{/each}
+	</div>
 </div>
 
 <style>
