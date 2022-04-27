@@ -6,6 +6,6 @@
     <title>Apebrain</title>
 </svelte:head>
 
-<div class="bg-zinc-900 text-zinc-200 h-screen w-screen flex">
+<div class="bg-zinc-900 text-zinc-200 h-screen w-screen flex overflow-x-clip">
     <slot/>
 </div>

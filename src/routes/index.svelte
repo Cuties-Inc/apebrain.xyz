@@ -5,6 +5,7 @@
 	import type { Todo } from '../types';
 	import { InputMode } from '../types';
 	import FocusModeModal from '/src/components/FocusModeModal.svelte';
+	import { isOverflown } from '/src/util/util';
 
 	const todos = writable<Todo[]>([]);
 	const todosCompleted = writable<Todo[]>([]);
@@ -22,26 +23,36 @@
 	var deleteTodoModalShown = false;
 	var focusModeShown = false;
 
-  var firstTaskTitle = "";
+	// shown tasks stuff
+
+	var todoListEl: HTMLElement;
+	var completedListEl: HTMLElement;
+
+	var shownLength = 0;
+  const todoH = 44; // h-4
+
+	function updateShownDimensions() {
+		shownLength = Math.floor(todoListEl.clientHeight / todoH) ;
+	}
+
+	// focus mode stuff
+
+	var firstTaskTitle = '';
 
 	function getFirstTaskTitle(): string {
-    if ($todos.length > 0)
-      return $todos[0].title
-    else return ""
+		if ($todos.length > 0) return $todos[0].title;
+		else return '';
 	}
 
 	// Values for new todos
 	var todoTitleInput = '';
-	// var newTodoDue = new Date()
 
 	// Element bindings
-	let newTodoTitleInputEl;
-	let editTodoTitleInputEl;
+	let newTodoTitleInputEl: HTMLElement;
+	let editTodoTitleInputEl: HTMLElement;
 
 	onMount(() => {
 		// Load values
-
-		console.log(`Load Todos: ${localStorage.getItem('apebrainTodos')}`);
 
 		if (localStorage.getItem('apebrainTodos'))
 			todos.set(JSON.parse(localStorage.getItem('apebrainTodos')) ?? []);
@@ -53,6 +64,18 @@
 		todos.subscribe((value) => localStorage.setItem('apebrainTodos', JSON.stringify(value)));
 		todosCompleted.subscribe((value) =>
 			localStorage.setItem('apebrainTodosCompleted', JSON.stringify(value))
+		);
+
+		// Handle window resize events (we only care about height)
+
+		window.addEventListener(
+			'resize',
+			() => {
+				selectedIndex = 0;
+				updateShownDimensions();
+        console.log(isOverflown(todoListEl))
+			},
+			true
 		);
 
 		// Handle key events / register keybindings
@@ -114,13 +137,17 @@
 							break;
 						}
 						case '[':
-						case 'g':
+						case 'g': {
+							// let target = (incompleteSelected ? $todos : $todosCompleted)
 							selectedIndex = 0;
 							break;
+						}
 						case ']':
-						case 'G':
-							selectedIndex = $todos.length - 1;
+						case 'G': {
+							let target = incompleteSelected ? $todos : $todosCompleted;
+							selectedIndex = target.length - 1;
 							break;
+						}
 						case ' ': {
 							if ((incompleteSelected ? $todos : $todosCompleted).length > 0) {
 								let temp = incompleteSelected ? $todos : $todosCompleted;
@@ -180,12 +207,12 @@
 							inputMode = InputMode.Modal;
 							break;
 						case 'f':
-              if ($todos.length > 0) {
-                firstTaskTitle = getFirstTaskTitle();
-                focusModeShown = true;
-                inputMode = InputMode.Modal;
-              }
-              break;
+							if ($todos.length > 0) {
+								firstTaskTitle = getFirstTaskTitle();
+								focusModeShown = true;
+								inputMode = InputMode.Modal;
+							}
+							break;
 					}
 					break;
 				}
@@ -280,11 +307,12 @@
 	});
 </script>
 
+<!-- Modal popups -->
 <Modal shown={deleteTodoModalShown} title="Delete Task? Press [D] to confirm." />
 <Modal shown={newTodoModalShown} title="New Task:">
 	<div class="w-96 flex flex-col">
 		<input
-			class="text-2xl p-1.5 border-b-2 border-zinc-500 focus:border-zinc-200 bg-transparent outline-0 w-full flex transition ease-in-out duration-200"
+			class="text-xl p-1.5 border-b-2 border-zinc-500 focus:border-zinc-200 bg-transparent outline-0 w-full flex transition ease-in-out duration-200"
 			type="text"
 			placeholder="Task Title"
 			bind:value={todoTitleInput}
@@ -295,7 +323,7 @@
 <Modal shown={editTodoModalShown} title="Edit Task">
 	<div class="w-96 flex flex-col">
 		<input
-			class="text-2xl p-1.5 border-b-2 border-zinc-500 focus:border-zinc-200 bg-transparent outline-0 w-full flex transition ease-in-out duration-200"
+			class="text-xl p-1.5 border-b-2 border-zinc-500 focus:border-zinc-200 bg-transparent outline-0 w-full flex transition ease-in-out duration-200"
 			type="text"
 			placeholder="Task Title"
 			bind:value={todoTitleInput}
@@ -326,34 +354,33 @@
 <!-- Incomplete todos -->
 <div class="py-4 pl-8 pr-16 w-auto flex flex-col lhalf">
 	<div class="text-3xl font-bold pb-3 background-zinc-900">Tasks</div>
-	<!-- {todoListSnap == ListSnap.Top ? 'top-0' : (todoListSnap == ListSnap.Bottom ? 'bottom-0' : '')} -->
-	<div class="overflow-y-clip relative bottom-0">
-		{#each $todos as todo}
-			<div
-				class="flex flex-row my-1.5 px-2.5 h-10 w-full items-center rounded-md  transition ease-in-out duration-200 select-none 
-				{incompleteSelected && get(todos)[selectedIndex] === todo
-					? 'bg-zinc-200 text-zinc-900 scale-110 translate-x-4'
-					: ''}"
-			>
-				<div class="mr-3">
-					<svg
-						xmlns="http://www.w3.org/2000/svg"
-						width="24"
-						height="24"
-						viewBox="0 0 24 24"
-						fill="none"
-						stroke="currentColor"
-						stroke-width="2"
-						stroke-linecap="round"
-						stroke-linejoin="round"
-						class="feather feather-circle stroke-zinc-{incompleteSelected &&
-						get(todos)[selectedIndex] === todo
-							? '900'
-							: '200'}"><circle cx="12" cy="12" r="10" /></svg
-					>
-				</div>
-				<div class="flex text-xl text-ellipsis overflow-hidden">{todo.title}</div>
-			</div>
+	<div class="overflow-y-clip relative" bind:this="{todoListEl}">
+		{#each $todos as todo, i}
+      <div
+        class="flex flex-row my-1.5 px-2.5 h-10 w-full items-center rounded-md  transition ease-in-out duration-200 select-none 
+      {incompleteSelected && get(todos)[selectedIndex] === todo
+          ? 'bg-zinc-200 text-zinc-900 scale-110 translate-x-4'
+          : ''}"
+      >
+        <div class="mr-3">
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="24"
+            height="24"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            class="feather feather-circle stroke-zinc-{incompleteSelected &&
+            get(todos)[selectedIndex] === todo
+              ? '900'
+              : '200'}"><circle cx="12" cy="12" r="10" /></svg
+          >
+        </div>
+        <div class="flex text-xl text-ellipsis overflow-hidden">{todo.title} - {i}</div>
+      </div>
 		{/each}
 	</div>
 </div>
@@ -361,8 +388,8 @@
 <!-- Completed todos -->
 <div class="py-4 pl-8 pr-16 w-auto flex flex-col text-zinc-400 rhalf">
 	<div class="text-3xl font-bold pb-3 background-zinc-900">Completed</div>
-	<div class="overflow-y-clip relative">
-		{#each $todosCompleted as todo}
+	<div class="overflow-y-clip relative" bind:this={completedListEl}>
+		{#each $todosCompleted as todo, i}
 			<div
 				class="flex flex-row my-1.5 px-2.5 h-10 w-full items-center rounded-md {!incompleteSelected &&
 				$todosCompleted[selectedIndex] === todo
