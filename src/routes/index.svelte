@@ -5,7 +5,6 @@
 	import type { Todo } from '../types';
 	import { InputMode } from '../types';
 	import FocusModeModal from '/src/components/FocusModeModal.svelte';
-	import { isOverflown } from '/src/util/util';
 
 	const todos = writable<Todo[]>([]);
 	const todosCompleted = writable<Todo[]>([]);
@@ -15,7 +14,7 @@
 	let incompleteSelected = true;
 
 	let inputMode = InputMode.TodoCommand;
-	var selectedIndex = 0;
+	var selectedIndex = -1;
 
 	var helpModalShown = false;
 	var newTodoModalShown = false;
@@ -28,14 +27,7 @@
 	var todoListEl: HTMLElement;
 	var completedListEl: HTMLElement;
 
-	var shownLength = 0;
-  const todoH = 44; // h-4
-
-	function updateShownDimensions() {
-		shownLength = Math.floor(todoListEl.clientHeight / todoH) ;
-	}
-
-	// focus mode stuff
+	var shownLength;
 
 	var firstTaskTitle = '';
 
@@ -51,7 +43,26 @@
 	let newTodoTitleInputEl: HTMLElement;
 	let editTodoTitleInputEl: HTMLElement;
 
+	// focus the selected index using builtin browser crap.
+	// this basically forces the task list frame to scroll when 
+	// we're moving the selection out of it
+	// $: selectedIndex != null && browser && (() => {
+	$: selectedIndex >= 0 && (() => {
+
+		// handle initializing with an invalid selectedIndex because svelte is being a pooper >:c
+		if (selectedIndex == -1) {
+			selectedIndex = 0;
+		}
+
+		let el_id = `${incompleteSelected ? "incomplete-item" : "completed-item"}-${selectedIndex}`
+		let el = document.getElementById(el_id)
+		el.setAttribute('tabindex', '0');
+		el.focus();
+	})();
+
 	onMount(() => {
+		// initialize selected index >:(
+
 		// Load values
 
 		if (localStorage.getItem('apebrainTodos'))
@@ -64,18 +75,6 @@
 		todos.subscribe((value) => localStorage.setItem('apebrainTodos', JSON.stringify(value)));
 		todosCompleted.subscribe((value) =>
 			localStorage.setItem('apebrainTodosCompleted', JSON.stringify(value))
-		);
-
-		// Handle window resize events (we only care about height)
-
-		window.addEventListener(
-			'resize',
-			() => {
-				selectedIndex = 0;
-				updateShownDimensions();
-        console.log(isOverflown(todoListEl))
-			},
-			true
 		);
 
 		// Handle key events / register keybindings
@@ -305,6 +304,8 @@
 			}
 		});
 	});
+
+
 </script>
 
 <!-- Modal popups -->
@@ -352,68 +353,40 @@
 </FocusModeModal>
 
 <!-- Incomplete todos -->
-<div class="py-4 pl-8 pr-16 w-auto flex flex-col lhalf">
+<div id="task-column" class="py-4 pl-8 pr-16 w-auto flex flex-col lhalf">
 	<div class="text-3xl font-bold pb-3 background-zinc-900">Tasks</div>
 	<div class="overflow-y-clip relative" bind:this="{todoListEl}">
-		{#each $todos as todo, i}
-      <div
-        class="flex flex-row my-1.5 px-2.5 h-10 w-full items-center rounded-md  transition ease-in-out duration-200 select-none 
-      {incompleteSelected && get(todos)[selectedIndex] === todo
-          ? 'bg-zinc-200 text-zinc-900 scale-110 translate-x-4'
-          : ''}"
-      >
+	{#each $todos as todo, i}
+	<div
+	id="incomplete-item-{i}"
+	class="flex flex-row my-1.5 px-2.5 h-10 w-full items-center rounded-md  transition ease-in-out duration-200 select-none 
+	{incompleteSelected && get(todos)[selectedIndex] === todo
+		? 'bg-zinc-200 text-zinc-900 scale-110 translate-x-4'
+		: ''}">
         <div class="mr-3">
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="24"
-            height="24"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            class="feather feather-circle stroke-zinc-{incompleteSelected &&
-            get(todos)[selectedIndex] === todo
-              ? '900'
-              : '200'}"><circle cx="12" cy="12" r="10" /></svg
-          >
+          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-circle stroke-zinc-{incompleteSelected && get(todos)[selectedIndex] === todo ? '900' : '200'}"><circle cx="12" cy="12" r="10" /></svg >
         </div>
-        <div class="flex text-xl text-ellipsis overflow-hidden">{todo.title} - {i}</div>
+        <!-- <div class="flex text-xl text-ellipsis overflow-hidden">{todo.title} - {i}</div> -->
+        <div class="flex text-xl text-ellipsis overflow-hidden">{todo.title}</div>
       </div>
 		{/each}
 	</div>
 </div>
 
 <!-- Completed todos -->
-<div class="py-4 pl-8 pr-16 w-auto flex flex-col text-zinc-400 rhalf">
+<div id="completed-column" class="py-4 pl-8 pr-16 w-auto flex flex-col text-zinc-400 rhalf">
 	<div class="text-3xl font-bold pb-3 background-zinc-900">Completed</div>
-	<div class="overflow-y-clip relative" bind:this={completedListEl}>
+	<div class="completed-container relative" bind:this={completedListEl}>
 		{#each $todosCompleted as todo, i}
 			<div
-				class="flex flex-row my-1.5 px-2.5 h-10 w-full items-center rounded-md {!incompleteSelected &&
-				$todosCompleted[selectedIndex] === todo
-					? 'bg-zinc-400 text-zinc-900 scale-110 translate-x-4'
-					: ''} transition ease-in-out duration-200 select-none"
+			id="completed-item-{i}"
+			class="flex flex-row my-1.5 px-2.5 h-10 w-full items-center rounded-md {!incompleteSelected &&
+			$todosCompleted[selectedIndex] === todo
+				? 'bg-zinc-400 text-zinc-900 scale-110 translate-x-4'
+				: ''} transition ease-in-out duration-200 select-none"
 			>
 				<div class="mr-3">
-					<svg
-						xmlns="http://www.w3.org/2000/svg"
-						width="24"
-						height="24"
-						viewBox="0 0 24 24"
-						fill="none"
-						stroke="currentColor"
-						stroke-width="2"
-						stroke-linecap="round"
-						stroke-linejoin="round"
-						class="feather feather-check-circle stroke-zinc-{!incompleteSelected &&
-						$todosCompleted[selectedIndex] === todo
-							? '900'
-							: '400'}"
-						><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" /><polyline
-							points="22 4 12 14.01 9 11.01"
-						/></svg
+					<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-check-circle stroke-zinc-{!incompleteSelected && $todosCompleted[selectedIndex] === todo ? '900' : '400'}" ><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" /><polyline points="22 4 12 14.01 9 11.01" /></svg
 					>
 				</div>
 				<div class="flex text-xl text-ellipsis overflow-hidden line-through">{todo.title}</div>
@@ -434,8 +407,23 @@
 		width: calc(100vw / 2);
 		left: 0;
 	}
+
 	.rhalf {
 		width: calc(100vw / 2);
 		left: calc(100vw / 2);
+	}
+
+	.completed-container {
+		overflow-y: scroll;
+
+		max-width: 100% !important;
+		width: 100%;
+		overflow-x: visible !important;
+
+		/* padding: 0px 20px; */
+	}
+
+	*:focus {
+		outline: none;
 	}
 </style>
