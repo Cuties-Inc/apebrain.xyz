@@ -323,6 +323,7 @@
 		/>
 	</div>
 </Modal>
+
 <Modal shown={editTodoModalShown} title="Edit Task">
 	<div class="w-96 flex flex-col">
 		<input
@@ -334,19 +335,24 @@
 		/>
 	</div>
 </Modal>
+
 <Modal shown={helpModalShown} title="Help">
-	<div class="w-96 flex flex-row text-xl">
-		<div class="flex flex-col">
-			<div class="my-0.5">[n / i] - add new task</div>
-			<div class="my-0.5">[h / l] - left / right between lists</div>
-			<div class="my-0.5">[k / j] - up / down between tasks</div>
-			<div class="my-0.5">[shift] [k / j] - move tasks up / down</div>
-			<div class="my-0.5">[d] - delete task</div>
-			<div class="my-0.5">[f] - focus mode</div>
-			<div class="my-0.5">[space] - check / uncheck task</div>
-			<div class="my-0.5">[esc] - exit current view</div>
-			<div class="my-0.5">[/ / ?] - help</div>
-		</div>
+	<div class="flex flex-row text-xl">
+		<table class="border-zinc-500 border-collapse">
+			<!-- <tr>
+				<th class="font-semibold text-left pb-1">Keystroke</th>
+				<th class="font-semibold text-left pb-1">Command</th>
+			</tr> -->
+			<tr><td class="border border-zinc-500 text-zinc-500 px-2.5 py-1">[n / i]</td>           <td class="border border-zinc-500 py-1 px-2.5">add new task</td></tr>
+			<tr><td class="border border-zinc-500 text-zinc-500 px-2.5 py-1">[h / l]</td>           <td class="border border-zinc-500 py-1 px-2.5">left / right between lists</td></tr>
+			<tr><td class="border border-zinc-500 text-zinc-500 px-2.5 py-1">[k / j]</td>           <td class="border border-zinc-500 py-1 px-2.5">up / down between tasks</td></tr>
+			<tr><td class="border border-zinc-500 text-zinc-500 px-2.5 py-1">[shift] [k / j]</td>   <td class="border border-zinc-500 py-1 px-2.5">move tasks up / down</td></tr>
+			<tr><td class="border border-zinc-500 text-zinc-500 px-2.5 py-1">[d]</td>               <td class="border border-zinc-500 py-1 px-2.5">delete task</td></tr>
+			<tr><td class="border border-zinc-500 text-zinc-500 px-2.5 py-1">[f]</td>               <td class="border border-zinc-500 py-1 px-2.5">focus mode</td></tr>
+			<tr><td class="border border-zinc-500 text-zinc-500 px-2.5 py-1">[space]</td>           <td class="border border-zinc-500 py-1 px-2.5">check / uncheck task</td></tr>
+			<tr><td class="border border-zinc-500 text-zinc-500 px-2.5 py-1">[esc]</td>             <td class="border border-zinc-500 py-1 px-2.5">exit current view</td></tr>
+			<tr><td class="border border-zinc-500 text-zinc-500 px-2.5 py-1">[/ / ?]</td>           <td class="border border-zinc-500 py-1 px-2.5">help</td></tr>
+		</table>
 	</div>
 </Modal>
 
@@ -376,7 +382,7 @@
 </div>
 
 <!-- Completed todos -->
-<div id="completed-column" class="py-4 pl-8 pr-16 w-auto flex flex-col text-zinc-400 rhalf">
+<div id="completed-column" class="py-4 pl-8 pr-16 w-auto flex flex-col text-zinc-500 rhalf">
 	<div class="text-3xl font-bold pb-3 background-zinc-900">Completed</div>
 	<div class="completed-container relative" bind:this={completedListEl}>
 		{#each $todosCompleted as todo, i}
