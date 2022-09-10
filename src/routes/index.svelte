@@ -4,45 +4,93 @@
 	import { get, writable } from 'svelte/store';
 	import type { Todo } from '../types';
 	import { InputMode } from '../types';
+	import FocusModeModal from '/src/components/FocusModeModal.svelte';
 
 	const todos = writable<Todo[]>([]);
 	const todosCompleted = writable<Todo[]>([]);
+	const todosArchive = writable<Todo[]>([]);
 
 	// Modal / View controls Controls
 
 	let incompleteSelected = true;
 
 	let inputMode = InputMode.TodoCommand;
-	var selectedIndex = 0;
+	var selectedIndex = -1;
 
 	var helpModalShown = false;
 	var newTodoModalShown = false;
+	var archiveModalShown = false;
+	var exportModalShown = false;
+
+	// the following require at least 1 unarchived task
 	var editTodoModalShown = false;
 	var deleteTodoModalShown = false;
+	var focusModeShown = false;
+
+	// shown tasks stuff
+
+	var todoListEl: HTMLElement;
+	var completedListEl: HTMLElement;
+
+	var shownLength;
+
+	var firstTaskTitle = '';
+
+	function getFirstTaskTitle(): string {
+		if ($todos.length > 0) return $todos[0].title;
+		else return '';
+	}
 
 	// Values for new todos
 	var todoTitleInput = '';
-	// var newTodoDue = new Date()
 
 	// Element bindings
-	let newTodoTitleInputEl;
-	let editTodoTitleInputEl;
+	let newTodoTitleInputEl: HTMLElement;
+	let editTodoTitleInputEl: HTMLElement;
+
+	// focus the selected index using builtin browser crap.
+	// this basically forces the task list frame to scroll when 
+	// we're moving the selection out of it
+	// $: selectedIndex != null && browser && (() => {
+	$: selectedIndex >= 0 && (() => {
+
+		// handle initializing with an invalid selectedIndex because svelte is being a pooper >:c
+		if (selectedIndex == -1) {
+			selectedIndex = 0;
+		}
+
+		let el_id = `${incompleteSelected ? "incomplete-item" : "completed-item"}-${selectedIndex}`
+		let el = document.getElementById(el_id)
+		if (el) {
+			el.setAttribute('tabindex', '0');
+			el.focus();
+		}
+	})();
 
 	onMount(() => {
-		// Load values
+		// initialize selected index
 
-		console.log(`Load Todos: ${localStorage.getItem('apebrainTodos')}`);
+		if (selectedIndex < 0) {
+			selectedIndex = 0
+		}
+
+		// Load values
 
 		if (localStorage.getItem('apebrainTodos'))
 			todos.set(JSON.parse(localStorage.getItem('apebrainTodos')) ?? []);
 		if (localStorage.getItem('apebrainTodosCompleted'))
 			todosCompleted.set(JSON.parse(localStorage.getItem('apebrainTodosCompleted')) ?? []);
+		if (localStorage.getItem('apebrainTodosArchive'))
+			todosArchive.set(JSON.parse(localStorage.getItem('apebrainTodosArchive')) ?? []);
 
 		// Subscribe to state write events
 
 		todos.subscribe((value) => localStorage.setItem('apebrainTodos', JSON.stringify(value)));
 		todosCompleted.subscribe((value) =>
 			localStorage.setItem('apebrainTodosCompleted', JSON.stringify(value))
+		);
+		todosArchive.subscribe((value) =>
+			localStorage.setItem('apebrainTodosArchive', JSON.stringify(value))
 		);
 
 		// Handle key events / register keybindings
@@ -104,13 +152,17 @@
 							break;
 						}
 						case '[':
-						case 'g':
+						case 'g': {
+							// let target = (incompleteSelected ? $todos : $todosCompleted)
 							selectedIndex = 0;
 							break;
+						}
 						case ']':
-						case 'G':
-							selectedIndex = $todos.length - 1;
+						case 'G': {
+							let target = incompleteSelected ? $todos : $todosCompleted;
+							selectedIndex = target.length - 1;
 							break;
+						}
 						case ' ': {
 							if ((incompleteSelected ? $todos : $todosCompleted).length > 0) {
 								let temp = incompleteSelected ? $todos : $todosCompleted;
@@ -143,8 +195,7 @@
 							setTimeout(() => newTodoTitleInputEl.focus(), 0);
 							break;
 						}
-						case 'i':
-						case 'e': {
+						case 'i':{
 							todoTitleInput = $todos[selectedIndex].title;
 							editTodoModalShown = true;
 							inputMode = InputMode.Insert;
@@ -169,10 +220,86 @@
 							helpModalShown = true;
 							inputMode = InputMode.Modal;
 							break;
+						case 'f':
+							if ($todos.length > 0) {
+								firstTaskTitle = getFirstTaskTitle();
+								focusModeShown = true;
+								inputMode = InputMode.Modal;
+							}
+							break;
+						case 'a':
+						case 'A':
+						case 't':
+						case 'T': {
+							if ($todosCompleted.length > 0) {
+								archiveModalShown = true;
+								inputMode = InputMode.Modal;
+							}
+							break;
+						}
+						case 'E':
+						case 'e': {
+							console.log($todosArchive)
+							if ($todosArchive.length > 0) {
+								exportModalShown = true;
+								inputMode = InputMode.Modal;
+							}
+							break;
+						}
 					}
 					break;
 				}
 				case InputMode.Modal: {
+					if (helpModalShown) {
+						switch (key) {
+							case 'Escape':
+							case '/':
+							case '?':
+								helpModalShown = false;
+								inputMode = InputMode.TodoCommand;
+								break;
+						}
+					}
+					if (archiveModalShown) {
+						switch (key) {
+							case 'a':
+							case 'A':
+							case 't':
+							case 'T':
+							case 'Escape': {
+								archiveModalShown = false;
+								inputMode = InputMode.TodoCommand;
+								break;
+							}
+							case 'Y':
+							case 'y': {
+								archiveModalShown = false;
+								$todosArchive.push(...$todosCompleted.reverse())
+								$todosCompleted = [];
+								inputMode = InputMode.TodoCommand;
+								break;
+							}
+						}
+					}
+					if (exportModalShown) {
+						switch (key) {
+							case 'e':
+							case 'E':
+							case 'Escape': {
+								exportModalShown = false;
+								inputMode = InputMode.TodoCommand;
+								break;
+							}
+							case 'Y':
+							case 'y': {
+								exportModalShown = false;
+								let text = JSON.stringify($todosArchive, null, 4);
+								download('apebrain_archive.json', text)
+								inputMode = InputMode.TodoCommand;
+								break;
+							}
+						}
+					}
 					if (deleteTodoModalShown) {
 						switch (key) {
 							case 'd': {
@@ -193,12 +320,11 @@
 							}
 						}
 					}
-					if (helpModalShown) {
+					if (focusModeShown) {
 						switch (key) {
 							case 'Escape':
-							case '/':
-							case '?':
-								helpModalShown = false;
+							case 'f':
+								focusModeShown = false;
 								inputMode = InputMode.TodoCommand;
 								break;
 						}
@@ -252,13 +378,27 @@
 			}
 		});
 	});
+
+
+	// source: https://stackoverflow.com/a/18197341
+	function download(filename, text) {
+		var element = document.createElement('a');
+		element.setAttribute('href', 'data:text/plain;charset=utf-8,' + encodeURIComponent(text));
+		element.setAttribute('download', filename);
+		element.style.display = 'none';
+		document.body.appendChild(element);
+		element.click();
+		document.body.removeChild(element);
+	}
+
 </script>
 
-<Modal shown={deleteTodoModalShown} title="Delete Task? Press [D] to confirm." />
-<Modal shown={newTodoModalShown} title="New Task:">
+<!-- Modal popups -->
+<Modal bind:shown={deleteTodoModalShown} title="Delete Task? Press [D] to confirm." />
+<Modal bind:shown={newTodoModalShown} title="New Task:">
 	<div class="w-96 flex flex-col">
 		<input
-			class="text-2xl p-1.5 border-b-2 border-zinc-500 focus:border-zinc-200 bg-transparent outline-0 w-full flex transition ease-in-out duration-200"
+			class="text-xl p-1.5 border-b-2 border-zinc-500 focus:border-zinc-200 bg-transparent outline-0 w-full flex transition ease-in-out duration-200"
 			type="text"
 			placeholder="Task Title"
 			bind:value={todoTitleInput}
@@ -266,10 +406,11 @@
 		/>
 	</div>
 </Modal>
-<Modal shown={editTodoModalShown} title="Edit Task">
+
+<Modal bind:shown={editTodoModalShown} title="Edit Task">
 	<div class="w-96 flex flex-col">
 		<input
-			class="text-2xl p-1.5 border-b-2 border-zinc-500 focus:border-zinc-200 bg-transparent outline-0 w-full flex transition ease-in-out duration-200"
+			class="text-xl p-1.5 border-b-2 border-zinc-500 focus:border-zinc-200 bg-transparent outline-0 w-full flex transition ease-in-out duration-200"
 			type="text"
 			placeholder="Task Title"
 			bind:value={todoTitleInput}
@@ -277,99 +418,126 @@
 		/>
 	</div>
 </Modal>
-<Modal shown={helpModalShown} title="Help">
-	<div class="w-96 flex flex-row text-xl">
-		<div class="flex flex-col">
-			<div class="my-0.5">[n / i] - add new task</div>
-			<div class="my-0.5">[h / l] - left / right between lists</div>
-			<div class="my-0.5">[k / j] - up / down between tasks</div>
-			<div class="my-0.5">[shift] [k / j] - move tasks up / down</div>
-			<div class="my-0.5">[d] - delete task</div>
-			<div class="my-0.5">[space] - check / uncheck task</div>
-			<div class="my-0.5">[esc] - exit current view</div>
-			<div class="my-0.5">[/ / ?] - help</div>
-		</div>
+
+<Modal bind:shown={helpModalShown} title="Help">
+	<div class="flex flex-row text-xl">
+		<table class="border-zinc-500 border-collapse">
+			<!-- <tr>
+				<th class="font-semibold text-left pb-1">Keystroke</th>
+				<th class="font-semibold text-left pb-1">Command</th>
+			</tr> -->
+			<tr><td class="border border-zinc-500 text-zinc-500 px-2.5 py-1">[n / i]</td>         <td class="border border-zinc-500 py-1 px-2.5">add / edit task</td></tr>
+			<tr><td class="border border-zinc-500 text-zinc-500 px-2.5 py-1">[h / l]</td>         <td class="border border-zinc-500 py-1 px-2.5">left / right between lists</td></tr>
+			<tr><td class="border border-zinc-500 text-zinc-500 px-2.5 py-1">[k / j]</td>         <td class="border border-zinc-500 py-1 px-2.5">up / down between tasks</td></tr>
+			<tr><td class="border border-zinc-500 text-zinc-500 px-2.5 py-1">[shift] [k / j]</td> <td class="border border-zinc-500 py-1 px-2.5">move tasks up / down</td></tr>
+			<tr><td class="border border-zinc-500 text-zinc-500 px-2.5 py-1">[d]</td>             <td class="border border-zinc-500 py-1 px-2.5">delete task</td></tr>
+			<tr><td class="border border-zinc-500 text-zinc-500 px-2.5 py-1">[f]</td>             <td class="border border-zinc-500 py-1 px-2.5">focus mode</td></tr>
+			<tr><td class="border border-zinc-500 text-zinc-500 px-2.5 py-1">[space]</td>         <td class="border border-zinc-500 py-1 px-2.5">check / uncheck task</td></tr>
+			<tr><td class="border border-zinc-500 text-zinc-500 px-2.5 py-1">[a,t]</td>           <td class="border border-zinc-500 py-1 px-2.5">archive cleared tasks</td></tr>
+			<tr><td class="border border-zinc-500 text-zinc-500 px-2.5 py-1">[e]</td>             <td class="border border-zinc-500 py-1 px-2.5">export archived tasks</td></tr>
+			<tr><td class="border border-zinc-500 text-zinc-500 px-2.5 py-1">[esc]</td>           <td class="border border-zinc-500 py-1 px-2.5">exit current view</td></tr>
+			<tr><td class="border border-zinc-500 text-zinc-500 px-2.5 py-1">[/,?]</td>           <td class="border border-zinc-500 py-1 px-2.5">help</td></tr>
+		</table>
 	</div>
 </Modal>
 
-<div class="py-4 pl-8 pr-16 w-auto flex flex-col lhalf">
-	<div class="text-3xl font-bold">Tasks</div>
-	<div class="h-3" />
-	{#each $todos as todo}
-		<div
-			class="flex flex-row my-1.5 px-2.5 py-1.5 w-full items-center rounded-md {incompleteSelected &&
-			get(todos)[selectedIndex] === todo
-				? 'bg-zinc-200 text-zinc-900 scale-110 translate-x-4'
-				: ''} transition ease-in-out duration-200 select-none"
-		>
-			<div class="mr-3">
-				<svg
-					xmlns="http://www.w3.org/2000/svg"
-					width="24"
-					height="24"
-					viewBox="0 0 24 24"
-					fill="none"
-					stroke="currentColor"
-					stroke-width="2"
-					stroke-linecap="round"
-					stroke-linejoin="round"
-					class="feather feather-circle stroke-zinc-{incompleteSelected &&
-					get(todos)[selectedIndex] === todo
-						? '900'
-						: '200'}"><circle cx="12" cy="12" r="10" /></svg
-				>
-			</div>
-			<div class="flex text-2xl text-ellipsis overflow-hidden">{todo.title}</div>
-		</div>
-	{/each}
-</div>
-<div class="py-4 pl-8 pr-16 w-auto flex flex-col text-zinc-400 rhalf">
-	<div class="text-3xl font-bold">Completed</div>
-	<div class="h-3" />
-	{#each $todosCompleted as todo}
-		<div
-			class="flex flex-row my-1.5 px-2.5 py-1.5 w-full items-center rounded-md {!incompleteSelected &&
-			$todosCompleted[selectedIndex] === todo
-				? 'bg-zinc-400 text-zinc-900 scale-110 translate-x-4'
-				: ''} transition ease-in-out duration-200 select-none"
-		>
-			<div class="mr-3">
-				<svg
-					xmlns="http://www.w3.org/2000/svg"
-					width="24"
-					height="24"
-					viewBox="0 0 24 24"
-					fill="none"
-					stroke="currentColor"
-					stroke-width="2"
-					stroke-linecap="round"
-					stroke-linejoin="round"
-					class="feather feather-check-circle stroke-zinc-{!incompleteSelected &&
-					$todosCompleted[selectedIndex] === todo
-						? '900'
-						: '400'}"
-					><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" /><polyline
-						points="22 4 12 14.01 9 11.01"
-					/></svg
-				>
-			</div>
-			<div class="flex text-2xl text-ellipsis overflow-hidden line-through">{todo.title}</div>
-      {#if todo.checkedDate}
-        <div class="flex ml-auto text-2xl">
-            {new Date(todo.checkedDate).getMonth()+1}/{new Date(todo.checkedDate).getDate()}/{new Date(todo.checkedDate).getFullYear()}
+<Modal bind:shown={archiveModalShown} title="Would you like to archive all tasks? [Y] to confirm."/>
+
+<Modal bind:shown={exportModalShown} title="Would you like to export all archived tasks? [Y] to confirm."/>
+
+<FocusModeModal bind:shown={focusModeShown}>
+	<div class="text-3xl">{firstTaskTitle}</div>
+</FocusModeModal>
+
+<!-- Incomplete todos -->
+<div id="task-column" class="py-4 pl-8 pr-16 w-auto flex flex-col lhalf">
+	<div class="flex flex-row items-center">
+		<div class="text-2xl select-none mb-2.5 pb-0 hidden lg:flex">{"[ apebrain.xyz ]"}</div>
+		<div class="ml-auto text-3xl font-bold pb-3 background-zinc-900">Tasks</div>
+	</div>
+	<div class="overflow-y-clip relative" bind:this="{todoListEl}">
+	{#each $todos as todo, i}
+	<div
+	id="incomplete-item-{i}"
+	class="flex flex-row my-1.5 px-2.5 h-10 w-full items-center rounded-md transition ease-in-out duration-200 select-none 
+	{incompleteSelected && get(todos)[selectedIndex] === todo
+		? 'bg-zinc-200 text-zinc-900 scale-105'
+		: ''}">
+        <div class="mr-3">
+          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-circle stroke-zinc-{incompleteSelected && get(todos)[selectedIndex] === todo ? '900' : '200'}"><circle cx="12" cy="12" r="10" /></svg >
         </div>
-      {/if}
-		</div>
-	{/each}
+        <!-- <div class="flex text-xl text-ellipsis overflow-hidden">{todo.title} - {i}</div> -->
+        <div class="flex text-xl text-ellipsis overflow-hidden whitespace-nowrap">{todo.title}</div>
+      </div>
+		{/each}
+	</div>
 </div>
+
+<!-- Completed todos -->
+<div id="completed-column" class="py-4 w-auto flex flex-col text-zinc-500 rhalf">
+	<div class="flex flex-row items-center pl-8 pr-16">
+		<div class="text-3xl font-bold pb-3 background-zinc-900">Completed</div>
+		<a 
+		class="ml-auto text-2xl text-zinc-100 select-none mb-2.5 pb-0 hidden lg:flex cursor-pointer hover:bg-zinc-100 hover:text-zinc-900"
+		href="https://github.com/Cuties-Inc/apebrain.xyz"
+		target="_blank"
+		>{"[ github ]"}
+		</a>
+	</div>
+	<div class="completed-container relative pr-16" bind:this={completedListEl}>
+		{#each $todosCompleted as todo, i}
+			<div
+			id="completed-item-{i}"
+			class="ml-8 mr-16 flex flex-row my-1.5 px-2.5 h-10 w-full items-center rounded-md {!incompleteSelected &&
+			$todosCompleted[selectedIndex] === todo
+				? 'bg-zinc-400 text-zinc-900 scale-105'
+				: ''} transition ease-in-out duration-200 select-none"
+			>
+				<div class="mr-3">
+					<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-check-circle stroke-zinc-{!incompleteSelected && $todosCompleted[selectedIndex] === todo ? '900' : '400'}" ><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" /><polyline points="22 4 12 14.01 9 11.01" /></svg
+					>
+				</div>
+				<div class="flex text-xl text-ellipsis overflow-hidden whitespace-nowrap mr-2 line-through">{todo.title}</div>
+				{#if todo.checkedDate}
+					<div class="flex ml-auto text-xl">
+						{new Date(todo.checkedDate).getMonth() + 1}/{new Date(
+							todo.checkedDate
+						).getDate()}/{new Date(todo.checkedDate).getFullYear()}
+					</div>
+				{/if}
+			</div>
+		{/each}
+	</div>
+</div>
+
+{#if $todos.length == 0 && $todosCompleted.length == 0 && !helpModalShown && !newTodoModalShown && !archiveModalShown && !exportModalShown}
+<div class="absolute z-30 w-screen h-screen flex pointer-events-none">
+	<div class="flex m-auto text-2xl text-zinc-500 bg-zinc-900 select-none">Press the "/" key for help</div>
+</div>
+{/if}
 
 <style>
 	.lhalf {
 		width: calc(100vw / 2);
 		left: 0;
 	}
+
 	.rhalf {
 		width: calc(100vw / 2);
 		left: calc(100vw / 2);
+	}
+
+	.completed-container {
+		overflow-y: scroll;
+
+		max-width: 100% !important;
+		width: 100%;
+		overflow-x: visible !important;
+
+		/* padding: 0px 20px; */
+	}
+
+	*:focus {
+		outline: none;
 	}
 </style>
