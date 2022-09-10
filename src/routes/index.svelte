@@ -56,8 +56,10 @@
 
 		let el_id = `${incompleteSelected ? "incomplete-item" : "completed-item"}-${selectedIndex}`
 		let el = document.getElementById(el_id)
-		el.setAttribute('tabindex', '0');
-		el.focus();
+		if (el) {
+			el.setAttribute('tabindex', '0');
+			el.focus();
+		}
 	})();
 
 	onMount(() => {
