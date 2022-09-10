@@ -8,6 +8,7 @@
 
 	const todos = writable<Todo[]>([]);
 	const todosCompleted = writable<Todo[]>([]);
+	const todosArchive = writable<Todo[]>([]);
 
 	// Modal / View controls Controls
 
@@ -18,6 +19,10 @@
 
 	var helpModalShown = false;
 	var newTodoModalShown = false;
+	var archiveModalShown = false;
+	var exportModalShown = false;
+
+	// the following require at least 1 unarchived task
 	var editTodoModalShown = false;
 	var deleteTodoModalShown = false;
 	var focusModeShown = false;
@@ -63,7 +68,11 @@
 	})();
 
 	onMount(() => {
-		// initialize selected index >:(
+		// initialize selected index
+
+		if (selectedIndex < 0) {
+			selectedIndex = 0
+		}
 
 		// Load values
 
@@ -71,12 +80,17 @@
 			todos.set(JSON.parse(localStorage.getItem('apebrainTodos')) ?? []);
 		if (localStorage.getItem('apebrainTodosCompleted'))
 			todosCompleted.set(JSON.parse(localStorage.getItem('apebrainTodosCompleted')) ?? []);
+		if (localStorage.getItem('apebrainTodosArchive'))
+			todosArchive.set(JSON.parse(localStorage.getItem('apebrainTodosArchive')) ?? []);
 
 		// Subscribe to state write events
 
 		todos.subscribe((value) => localStorage.setItem('apebrainTodos', JSON.stringify(value)));
 		todosCompleted.subscribe((value) =>
 			localStorage.setItem('apebrainTodosCompleted', JSON.stringify(value))
+		);
+		todosArchive.subscribe((value) =>
+			localStorage.setItem('apebrainTodosArchive', JSON.stringify(value))
 		);
 
 		// Handle key events / register keybindings
@@ -181,8 +195,7 @@
 							setTimeout(() => newTodoTitleInputEl.focus(), 0);
 							break;
 						}
-						case 'i':
-						case 'e': {
+						case 'i':{
 							todoTitleInput = $todos[selectedIndex].title;
 							editTodoModalShown = true;
 							inputMode = InputMode.Insert;
@@ -214,10 +227,79 @@
 								inputMode = InputMode.Modal;
 							}
 							break;
+						case 'a':
+						case 'A':
+						case 't':
+						case 'T': {
+							if ($todosCompleted.length > 0) {
+								archiveModalShown = true;
+								inputMode = InputMode.Modal;
+							}
+							break;
+						}
+						case 'E':
+						case 'e': {
+							console.log($todosArchive)
+							if ($todosArchive.length > 0) {
+								exportModalShown = true;
+								inputMode = InputMode.Modal;
+							}
+							break;
+						}
 					}
 					break;
 				}
 				case InputMode.Modal: {
+					if (helpModalShown) {
+						switch (key) {
+							case 'Escape':
+							case '/':
+							case '?':
+								helpModalShown = false;
+								inputMode = InputMode.TodoCommand;
+								break;
+						}
+					}
+					if (archiveModalShown) {
+						switch (key) {
+							case 'a':
+							case 'A':
+							case 't':
+							case 'T':
+							case 'Escape': {
+								archiveModalShown = false;
+								inputMode = InputMode.TodoCommand;
+								break;
+							}
+							case 'Y':
+							case 'y': {
+								archiveModalShown = false;
+								$todosArchive.push(...$todosCompleted.reverse())
+								$todosCompleted = [];
+								inputMode = InputMode.TodoCommand;
+								break;
+							}
+						}
+					}
+					if (exportModalShown) {
+						switch (key) {
+							case 'e':
+							case 'E':
+							case 'Escape': {
+								exportModalShown = false;
+								inputMode = InputMode.TodoCommand;
+								break;
+							}
+							case 'Y':
+							case 'y': {
+								exportModalShown = false;
+								let text = JSON.stringify($todosArchive, null, 4);
+								download('apebrain_archive.json', text)
+								inputMode = InputMode.TodoCommand;
+								break;
+							}
+						}
+					}
 					if (deleteTodoModalShown) {
 						switch (key) {
 							case 'd': {
@@ -236,16 +318,6 @@
 								inputMode = InputMode.TodoCommand;
 								break;
 							}
-						}
-					}
-					if (helpModalShown) {
-						switch (key) {
-							case 'Escape':
-							case '/':
-							case '?':
-								helpModalShown = false;
-								inputMode = InputMode.TodoCommand;
-								break;
 						}
 					}
 					if (focusModeShown) {
@@ -308,11 +380,22 @@
 	});
 
 
+	// source: https://stackoverflow.com/a/18197341
+	function download(filename, text) {
+		var element = document.createElement('a');
+		element.setAttribute('href', 'data:text/plain;charset=utf-8,' + encodeURIComponent(text));
+		element.setAttribute('download', filename);
+		element.style.display = 'none';
+		document.body.appendChild(element);
+		element.click();
+		document.body.removeChild(element);
+	}
+
 </script>
 
 <!-- Modal popups -->
-<Modal shown={deleteTodoModalShown} title="Delete Task? Press [D] to confirm." />
-<Modal shown={newTodoModalShown} title="New Task:">
+<Modal bind:shown={deleteTodoModalShown} title="Delete Task? Press [D] to confirm." />
+<Modal bind:shown={newTodoModalShown} title="New Task:">
 	<div class="w-96 flex flex-col">
 		<input
 			class="text-xl p-1.5 border-b-2 border-zinc-500 focus:border-zinc-200 bg-transparent outline-0 w-full flex transition ease-in-out duration-200"
@@ -324,7 +407,7 @@
 	</div>
 </Modal>
 
-<Modal shown={editTodoModalShown} title="Edit Task">
+<Modal bind:shown={editTodoModalShown} title="Edit Task">
 	<div class="w-96 flex flex-col">
 		<input
 			class="text-xl p-1.5 border-b-2 border-zinc-500 focus:border-zinc-200 bg-transparent outline-0 w-full flex transition ease-in-out duration-200"
@@ -336,27 +419,33 @@
 	</div>
 </Modal>
 
-<Modal shown={helpModalShown} title="Help">
+<Modal bind:shown={helpModalShown} title="Help">
 	<div class="flex flex-row text-xl">
 		<table class="border-zinc-500 border-collapse">
 			<!-- <tr>
 				<th class="font-semibold text-left pb-1">Keystroke</th>
 				<th class="font-semibold text-left pb-1">Command</th>
 			</tr> -->
-			<tr><td class="border border-zinc-500 text-zinc-500 px-2.5 py-1">[n / i]</td>           <td class="border border-zinc-500 py-1 px-2.5">add new task</td></tr>
-			<tr><td class="border border-zinc-500 text-zinc-500 px-2.5 py-1">[h / l]</td>           <td class="border border-zinc-500 py-1 px-2.5">left / right between lists</td></tr>
-			<tr><td class="border border-zinc-500 text-zinc-500 px-2.5 py-1">[k / j]</td>           <td class="border border-zinc-500 py-1 px-2.5">up / down between tasks</td></tr>
-			<tr><td class="border border-zinc-500 text-zinc-500 px-2.5 py-1">[shift] [k / j]</td>   <td class="border border-zinc-500 py-1 px-2.5">move tasks up / down</td></tr>
-			<tr><td class="border border-zinc-500 text-zinc-500 px-2.5 py-1">[d]</td>               <td class="border border-zinc-500 py-1 px-2.5">delete task</td></tr>
-			<tr><td class="border border-zinc-500 text-zinc-500 px-2.5 py-1">[f]</td>               <td class="border border-zinc-500 py-1 px-2.5">focus mode</td></tr>
-			<tr><td class="border border-zinc-500 text-zinc-500 px-2.5 py-1">[space]</td>           <td class="border border-zinc-500 py-1 px-2.5">check / uncheck task</td></tr>
-			<tr><td class="border border-zinc-500 text-zinc-500 px-2.5 py-1">[esc]</td>             <td class="border border-zinc-500 py-1 px-2.5">exit current view</td></tr>
-			<tr><td class="border border-zinc-500 text-zinc-500 px-2.5 py-1">[/ / ?]</td>           <td class="border border-zinc-500 py-1 px-2.5">help</td></tr>
+			<tr><td class="border border-zinc-500 text-zinc-500 px-2.5 py-1">[n / i]</td>         <td class="border border-zinc-500 py-1 px-2.5">add / edit task</td></tr>
+			<tr><td class="border border-zinc-500 text-zinc-500 px-2.5 py-1">[h / l]</td>         <td class="border border-zinc-500 py-1 px-2.5">left / right between lists</td></tr>
+			<tr><td class="border border-zinc-500 text-zinc-500 px-2.5 py-1">[k / j]</td>         <td class="border border-zinc-500 py-1 px-2.5">up / down between tasks</td></tr>
+			<tr><td class="border border-zinc-500 text-zinc-500 px-2.5 py-1">[shift] [k / j]</td> <td class="border border-zinc-500 py-1 px-2.5">move tasks up / down</td></tr>
+			<tr><td class="border border-zinc-500 text-zinc-500 px-2.5 py-1">[d]</td>             <td class="border border-zinc-500 py-1 px-2.5">delete task</td></tr>
+			<tr><td class="border border-zinc-500 text-zinc-500 px-2.5 py-1">[f]</td>             <td class="border border-zinc-500 py-1 px-2.5">focus mode</td></tr>
+			<tr><td class="border border-zinc-500 text-zinc-500 px-2.5 py-1">[space]</td>         <td class="border border-zinc-500 py-1 px-2.5">check / uncheck task</td></tr>
+			<tr><td class="border border-zinc-500 text-zinc-500 px-2.5 py-1">[a,t]</td>           <td class="border border-zinc-500 py-1 px-2.5">archive cleared tasks</td></tr>
+			<tr><td class="border border-zinc-500 text-zinc-500 px-2.5 py-1">[e]</td>             <td class="border border-zinc-500 py-1 px-2.5">export archived tasks</td></tr>
+			<tr><td class="border border-zinc-500 text-zinc-500 px-2.5 py-1">[esc]</td>           <td class="border border-zinc-500 py-1 px-2.5">exit current view</td></tr>
+			<tr><td class="border border-zinc-500 text-zinc-500 px-2.5 py-1">[/,?]</td>           <td class="border border-zinc-500 py-1 px-2.5">help</td></tr>
 		</table>
 	</div>
 </Modal>
 
-<FocusModeModal shown={focusModeShown}>
+<Modal bind:shown={archiveModalShown} title="Would you like to archive all tasks? [Y] to confirm."/>
+
+<Modal bind:shown={exportModalShown} title="Would you like to export all archived tasks? [Y] to confirm."/>
+
+<FocusModeModal bind:shown={focusModeShown}>
 	<div class="text-3xl">{firstTaskTitle}</div>
 </FocusModeModal>
 
@@ -420,6 +509,12 @@
 		{/each}
 	</div>
 </div>
+
+{#if $todos.length == 0 && $todosCompleted.length == 0 && !helpModalShown && !newTodoModalShown && !archiveModalShown && !exportModalShown}
+<div class="absolute z-30 w-screen h-screen flex pointer-events-none">
+	<div class="flex m-auto text-2xl text-zinc-500 bg-zinc-900 select-none">Press the "/" key for help</div>
+</div>
+{/if}
 
 <style>
 	.lhalf {
