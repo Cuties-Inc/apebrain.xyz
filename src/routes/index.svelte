@@ -450,25 +450,27 @@
 </FocusModeModal>
 
 <!-- Incomplete todos -->
-<div id="task-column" class="py-4 pl-8 pr-16 w-auto flex flex-col lhalf">
-	<div class="flex flex-row items-center">
+<div id="task-column" class="py-4 w-auto flex flex-col lhalf">
+	<div class="flex flex-row items-center pr-16 pl-8">
 		<div class="text-2xl select-none mb-2.5 pb-0 hidden lg:flex">{"[ apebrain.xyz ]"}</div>
 		<div class="ml-auto text-3xl font-bold pb-3 background-zinc-900">Tasks</div>
 	</div>
-	<div class="overflow-y-clip relative" bind:this="{todoListEl}">
+	<div class="incomplete-container relative scrollbar scrollbar-track-zinc-900 scrollbar-thumb-zinc-200" bind:this="{todoListEl}">
 	{#each $todos as todo, i}
-	<div
-	id="incomplete-item-{i}"
-	class="flex flex-row my-1.5 px-2.5 h-10 w-full items-center rounded-md transition ease-in-out duration-200 select-none 
-	{incompleteSelected && get(todos)[selectedIndex] === todo
-		? 'bg-zinc-200 text-zinc-900 scale-105'
-		: ''}">
-        <div class="mr-3">
-          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-circle stroke-zinc-{incompleteSelected && get(todos)[selectedIndex] === todo ? '900' : '200'}"><circle cx="12" cy="12" r="10" /></svg >
-        </div>
-        <!-- <div class="flex text-xl text-ellipsis overflow-hidden">{todo.title} - {i}</div> -->
-        <div class="flex text-xl text-ellipsis overflow-hidden whitespace-nowrap">{todo.title}</div>
-      </div>
+	<div class="pl-16 pr-8">
+		<div
+		id="incomplete-item-{i}"
+		class="flex flex-row my-1.5 px-2.5 h-10 w-full items-center rounded-md transition ease-in-out duration-200 select-none 
+		{incompleteSelected && get(todos)[selectedIndex] === todo
+			? 'bg-zinc-200 text-zinc-900 scale-105'
+			: ''}">
+			<div class="mr-3">
+			<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-circle stroke-zinc-{incompleteSelected && get(todos)[selectedIndex] === todo ? '900' : '200'}"><circle cx="12" cy="12" r="10" /></svg >
+			</div>
+			<!-- <div class="flex text-xl text-ellipsis overflow-hidden">{todo.title} - {i}</div> -->
+			<div class="flex text-xl text-ellipsis overflow-hidden whitespace-nowrap">{todo.title}</div>
+		</div>
+	</div>
 		{/each}
 	</div>
 </div>
@@ -484,11 +486,12 @@
 		>{"[ github ]"}
 		</a>
 	</div>
-	<div class="completed-container relative pr-16" bind:this={completedListEl}>
+	<div class="completed-container relative pr-16 scrollbar scrollbar-track-zinc-900 scrollbar-thumb-zinc-700" bind:this={completedListEl}>
 		{#each $todosCompleted as todo, i}
+		<div class="pl-8">
 			<div
 			id="completed-item-{i}"
-			class="ml-8 mr-16 flex flex-row my-1.5 px-2.5 h-10 w-full items-center rounded-md {!incompleteSelected &&
+			class="flex flex-row my-1.5 px-2.5 h-10 w-full items-center rounded-md w-fit {!incompleteSelected &&
 			$todosCompleted[selectedIndex] === todo
 				? 'bg-zinc-400 text-zinc-900 scale-105'
 				: ''} transition ease-in-out duration-200 select-none"
@@ -506,6 +509,7 @@
 					</div>
 				{/if}
 			</div>
+		</div>
 		{/each}
 	</div>
 </div>
@@ -525,6 +529,16 @@
 	.rhalf {
 		width: calc(100vw / 2);
 		left: calc(100vw / 2);
+	}
+
+	.incomplete-container {
+		overflow-y: scroll;
+
+		max-width: 100% !important;
+		width: 100%;
+		overflow-x: visible !important;
+
+		/* padding: 0px 20px; */
 	}
 
 	.completed-container {
